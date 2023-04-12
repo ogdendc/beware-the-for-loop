@@ -9,7 +9,7 @@
 # MAGIC >> ##### A common example of high-cardinality groups would be microgeographies such as zipcodes. 
 # MAGIC > #### We want to calculate some metrics or perform some functions (or even modeling) on each group separately.
 # MAGIC > #### We might be a bit Spark-timid, or perhaps tend towards non-distributed tools such as Pandas.
-# MAGIC > #### We are using a for-loop to curate data, and are surprised by how long it runs!
+# MAGIC > #### We are using a for-loop to curate data, and are surprised by how long it runs.
 
 # COMMAND ----------
 
@@ -28,8 +28,9 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring start time of the notebook
 import datetime
-start = datetime.datetime.now() # measuring total run time of the notebook
+nb_start = datetime.datetime.now() # measuring total run time of the notebook
 
 # COMMAND ----------
 
@@ -61,10 +62,10 @@ import random
 output = []  # <-- our results will be stored as a list, then converted to a Spark dataframe
 
 for i in range(L):        # L = number of locations defined above
-  for j in range(M):       # M = number of microsegments defined above
+  for j in range(M):        # M = number of microsegments defined above
     for t in dr:              # dr = list of relevant (continuous) dates defined above
       # random integer from -1 to 10
-      n = random.randint(-1, 10)     # used to randomly delete rows from our granular data, mocking operational irregularity
+      n = random.randint(-1, 10)     # used to randomly delete rows from our granular data, mimicking operational irregularity
       if n != -1 & t.weekday() < 6:  # forcing some granular discontinuity in the dates & assuming all locations are closed on Sundays
         output.append((i+1000, j+1, t.date(), n))     
         
@@ -73,6 +74,7 @@ display(spark_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,observing the size of the synthetic data
 # getting shape for spark dataframe = rows & columns
 print(("table size in rows, columns: ", spark_df.count(), len(spark_df.columns)))
 
@@ -91,11 +93,12 @@ print(("table size in rows, columns: ", spark_df.count(), len(spark_df.columns))
 
 # COMMAND ----------
 
+# DBTITLE 1,checking starting partitions out of curiosity
 print("beginning partitions = ", spark_df.rdd.getNumPartitions())
 
 # COMMAND ----------
 
-# DBTITLE 1,partitioning by our "groups" will significantly reduce runtimes below
+# DBTITLE 1,partitioning by our "groups" variable will significantly reduce run times below
 # partitioning the underlying data by the group-by column
 spark_df=spark_df.repartition('location_ID')
 
@@ -120,6 +123,7 @@ display(group_list)
 
 # COMMAND ----------
 
+# DBTITLE 1,confirming (rows, columns) for the list of unique "groups"
 # checking number of unique groups (i.e. unique location_IDs) 
 group_list.shape
 
@@ -130,6 +134,11 @@ group_list.shape
 # COMMAND ----------
 
 # MAGIC %md > #### output will be a dictionary of Pandas dataframes
+
+# COMMAND ----------
+
+# DBTITLE 1,measuring start time for this method
+start = datetime.datetime.now()
 
 # COMMAND ----------
 
@@ -145,6 +154,14 @@ for i in group_list.location_ID:  # <-- looping through each location_ID
   df_dict[i] = pandas_temp_df.groupby(["transaction_date"])["units_sold"].sum().reset_index()
   # use our Pandas continuous date range ("dr") to fill-in gaps in the data/dates
   df_dict[i] = df_dict[i].set_index('transaction_date').reindex(dr).fillna(0).rename_axis('transaction_date').reset_index()
+
+# COMMAND ----------
+
+# DBTITLE 1,measure approximate run time for the method above
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
 
 # COMMAND ----------
 
@@ -171,6 +188,7 @@ display(grouped_pandas_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # shape of the output in rows, columns
 grouped_pandas_df.shape                  # <-- should be # of groups x 365 (dates)
 
@@ -224,6 +242,11 @@ spark_schema = StructType([
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring start time for this method
+start = datetime.datetime.now()
+
+# COMMAND ----------
+
 # Step 4:  do the Spark groupBy function with applyinPandas API
 
 # Note:  the .sort of the output does add unnecessary processing time, but provides more intuitively displayed output
@@ -233,13 +256,29 @@ display(grouped_spark_df)  # <-- this steps actually executes the API call, than
 
 # COMMAND ----------
 
-# MAGIC %md ## Let's pause and reflect...
-# MAGIC > #### on how long it took Method 1 (for-loop) vs Method 2 (gropuBy.applyinPandas):
-# MAGIC - #### for-loop ~ 15 minutes
-# MAGIC - #### groupBy.applyinPandas ~ 8 *seconds*
+# DBTITLE 1,measuring approximate run time for the above method
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
 
 # COMMAND ----------
 
+# MAGIC %md ## Let's pause and reflect...
+# MAGIC > #### on how long it took Method 1 (for-loop) vs Method 2 (gropuBy.applyinPandas):
+# MAGIC - #### for-loop ~ 15 minutes
+# MAGIC - #### groupBy.applyinPandas ~ 6 *seconds*
+
+# COMMAND ----------
+
+# MAGIC %md # Note on run times:
+# MAGIC > ### Results will vary.
+# MAGIC > ##### You may not get the same run times, but...
+# MAGIC > ##### you should see the same order of magnitude of difference between run times for the various methods.
+
+# COMMAND ----------
+
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # shape of the output in rows, columns
 print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_spark_df.columns)))
 
@@ -287,6 +326,11 @@ def my_new_udf(x):
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring start time for this method
+start = datetime.datetime.now()
+
+# COMMAND ----------
+
 from concurrent.futures import ThreadPoolExecutor
 
 results = [] # <-- our results will be stored as a List of Pandas dataframes
@@ -301,16 +345,24 @@ with ThreadPoolExecutor(max_workers=1000) as threadpool:
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring approximate run time for the method above
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
+
+# COMMAND ----------
+
 # MAGIC %md ## Let's pause and reflect...
 # MAGIC > #### on how long it took Method 3 (ThreadPool) vs the other methods above:
 # MAGIC - #### for-loop ~ 15 minutes
-# MAGIC - #### groupBy.applyinPandas ~ 8 *seconds*
+# MAGIC - #### groupBy.applyinPandas ~ 6 *seconds*
 # MAGIC - #### ThreadPool ~ 7 minutes
 
 # COMMAND ----------
 
-# MAGIC %md ## Note:  If we observed cluster utilization during this execution...
-# MAGIC > #### we'd see significant increase in CPU utilization during ThreadPool...
+# MAGIC %md ## Note:  If we observed cluster utilization (see Ganglia reports) during this execution...
+# MAGIC > #### we'd see significant increase in CPU utilization during ThreadPool execution...
 # MAGIC > #### which is what we expect/want from this approach.
 
 # COMMAND ----------
@@ -332,6 +384,7 @@ display(grouped_pandas_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # shape of the output in rows, columns
 grouped_pandas_df.shape
 
@@ -350,6 +403,11 @@ grouped_pandas_df.shape
 # MAGIC %md > #### What if we are open to, and able to, accomplish desired results *without* Pandas?
 # MAGIC > #### The premise of above 3 methods assumes we want or need to use Pandas functionality.
 # MAGIC > #### If we can (and are willing to) rethink our code, and replicate Pandas functionality with just PySpark...
+
+# COMMAND ----------
+
+# DBTITLE 1,measuring start time for this method
+start = datetime.datetime.now()
 
 # COMMAND ----------
 
@@ -377,6 +435,15 @@ display(grouped_spark_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring approximate run time for the method above
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
+
+# COMMAND ----------
+
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # shape of the output in rows, columns
 print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_spark_df.columns)))
 
@@ -399,8 +466,8 @@ print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_sp
 
 # MAGIC %md ## Reviewing above run times:
 # MAGIC - ### for-loop ~ 15 minutes
-# MAGIC - ### groupBy.applyinPandas ~ 8 *seconds*
-# MAGIC - ### ThreadPool ~ 8 minutes
+# MAGIC - ### groupBy.applyinPandas ~ 6 *seconds*
+# MAGIC - ### ThreadPool ~ 7 minutes
 # MAGIC - ### PySpark (no Pandas) ~ 5 *seconds*
 
 # COMMAND ----------
@@ -411,7 +478,7 @@ print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_sp
 # COMMAND ----------
 
 # MAGIC %md ## First, let's revisit how we created the synthetic data.
-# MAGIC > #### Using a for-loop (above) ran for ~ 14 minutes.
+# MAGIC > #### Using a for-loop (above) ran for > 13 minutes.
 # MAGIC > #### As seen above, *beware the for-loop*!
 
 # COMMAND ----------
@@ -420,14 +487,17 @@ print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_sp
 
 # COMMAND ----------
 
+# DBTITLE 1,producing synthetic data with a much faster approach than a for-loop
 from pyspark.sql.functions import rand, round as _round, dayofweek
 
+# dataframe with all distinct locations
 df1 = spark.range(1000,1000+L).withColumnRenamed("id","location_ID") # L location_ID values from 1000 to 1000+L-1
+# dataframe with all distinct microsegments
 df2 = spark.range(1,1+M).withColumnRenamed("id","microsegment_ID") # M microsegment_ID values from 1 to M
 # crossjoin locations*microsegments * explode of all dates in relevant range
 spark_df = df1.crossJoin(df2).selectExpr("location_ID","microsegment_ID","explode(sequence(date('2022-01-01'),date('2022-12-31'),INTERVAL 1 DAY)) as transaction_date").withColumn("units_sold", _round(rand()*(10.4999--1.4999)-1.4999,0)).withColumn("dayofweek", dayofweek('transaction_date'))
 # Note:  above round(rand()*(10.4999--1.4999)-1.4999,0) yields a PySpark-based uniform random integer
-#          used to randomly delete rows from our granular data
+#          used to randomly delete rows from our granular data (as was done in the for-loop approach)
 spark_df = spark_df.filter((spark_df.dayofweek > 1) & (spark_df.units_sold >= 0)).drop('dayofweek').sort('location_ID','microsegment_ID','transaction_date')
 
 display(spark_df)
@@ -468,6 +538,7 @@ display(spark_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,observing size of our larger synthetic data
 # checking the size of the resulting generated synthetic data
 print(("table size in rows, columns: ", spark_df.count(), len(spark_df.columns)))
 
@@ -482,6 +553,7 @@ sqlContext.setConf("spark.sql.shuffle.partitions", "2001")  #<-- as our # of gro
 
 # COMMAND ----------
 
+# DBTITLE 1,partitioning the data by our "groups", just as done with the smaller data above
 # partitioning the underlying data by the group-by column
 spark_df=spark_df.repartition('location_ID')
 
@@ -496,6 +568,11 @@ print("new # of partitions = ", spark_df.rdd.getNumPartitions())
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring start time for this method
+start = datetime.datetime.now()
+
+# COMMAND ----------
+
 # Step 4:  do the Spark groupBy function with applyinPandas API
 
 # Note:  the .sort of the output does add unnecessary processing time, but provides more intuitively displayed output
@@ -505,12 +582,26 @@ display(grouped_spark_df)  # <-- this steps actually executes the API call, than
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring approximate run time for the method above
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
+
+# COMMAND ----------
+
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # getting shape for spark dataframe = rows & columns
 print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_spark_df.columns)))  # <-- should be # of groups x 365 (dates)
 
 # COMMAND ----------
 
 # MAGIC %md ## PySpark-only (no for-loop) approach on the larger data:
+
+# COMMAND ----------
+
+# DBTITLE 1,measuring start time of this method
+start = datetime.datetime.now()
 
 # COMMAND ----------
 
@@ -538,6 +629,15 @@ display(grouped_spark_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,measuring approximate run time for the method above
+end = datetime.datetime.now()
+elapsed = end - start
+minutes = round(elapsed.total_seconds() / 60, 3)
+print("approximate run time for this method = ", minutes, " minutes")
+
+# COMMAND ----------
+
+# DBTITLE 1,validating the size of the output (# of groups times # of days in the year)
 # getting shape for spark dataframe = rows & columns
 print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_spark_df.columns)))  # <-- should be # of groups x 365 (dates)
 
@@ -549,8 +649,9 @@ print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_sp
 
 # COMMAND ----------
 
-end = datetime.datetime.now()
-elapsed = end-start
+# DBTITLE 1,measuring total run time of the notebook
+nb_end = datetime.datetime.now()
+elapsed = nb_end - nb_start
 minutes = round(elapsed.total_seconds() / 60, 2)
 print("total run time of notebook = ", minutes, " minutes")
 
@@ -561,7 +662,7 @@ print("total run time of notebook = ", minutes, " minutes")
 # MAGIC > ## The groupBy.applyinPandas and the PySpark-only approaches are awesome.
 # MAGIC > ### The ThreadPool approach provides some reduced run time (compared to the for-loop), however...
 # MAGIC >>> #### not nearly as great an improvement as seen with the more truly distributed approaches.
-# MAGIC ## This notebook doesn't delve into the mechanics behind the scenes, but it all comes down to how each approach does (or does not) take advantage of Spark's super power of distributing the workload across the cluster and full utilizing the available cores:
+# MAGIC ## This notebook doesn't delve into the mechanics behind the scenes, but it all comes down to how each approach does (or does not) take advantage of Spark's super power of distributing the workload across the cluster and fully utilizing the available cores:
 
 # COMMAND ----------
 
