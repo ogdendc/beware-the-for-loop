@@ -4,6 +4,10 @@
 
 # COMMAND ----------
 
+# one tiny change to see if I can push from AWS workspace
+
+# COMMAND ----------
+
 # MAGIC %md ## The premise of the exercise below:
 # MAGIC > #### Within our data there are *many* "groups". 
 # MAGIC >> ##### A common example of high-cardinality groups would be microgeographies such as zipcodes. 
