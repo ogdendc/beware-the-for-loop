@@ -326,6 +326,20 @@ def my_new_udf(x):
 
 # COMMAND ----------
 
+# report the number of CPUs in your system visible to Python
+import os
+print(os.cpu_count())
+
+# COMMAND ----------
+
+from concurrent.futures import ThreadPoolExecutor
+# create a thread pool with the default number of worker threads
+executor = ThreadPoolExecutor()
+# report the number of worker threads chosen by default
+print(executor._max_workers)
+
+# COMMAND ----------
+
 # DBTITLE 1,measuring start time for this method
 start = datetime.datetime.now()
 
@@ -335,7 +349,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 results = [] # <-- our results will be stored as a List of Pandas dataframes
 
-with ThreadPoolExecutor(max_workers=1000) as threadpool:
+# see References below for more info on how to set max_workers
+with ThreadPoolExecutor(max_workers=42) as threadpool:
   results.extend(threadpool.map(lambda x: my_new_udf(x), group_list.location_ID))
   
 # Notice:
