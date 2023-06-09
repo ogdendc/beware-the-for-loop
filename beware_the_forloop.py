@@ -24,7 +24,13 @@
 
 # DBTITLE 1,Azure:
 # MAGIC %md
-# MAGIC <img src ='http://drive.google.com/uc?export=view&id=1WnImMAjT89pQ13MRVOtWpAyRr8irTuFF' width="700" height="1100">
+# MAGIC <img src="https://raw.githubusercontent.com/ogdendc/images_public/main/Azure_cluster_config_BTFL.jpeg" width="700" height="1100">
+
+# COMMAND ----------
+
+# DBTITLE 1,AWS:
+# MAGIC %md
+# MAGIC <img src="https://raw.githubusercontent.com/ogdendc/images_public/main/AWS_cluster_config_BTFL.jpeg" width="550" height="600">
 
 # COMMAND ----------
 
@@ -682,7 +688,7 @@ print("total run time of notebook = ", minutes, " minutes")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src ='http://drive.google.com/uc?export=view&id=17uz9n_nkB-99iv6ANiCQtwGb9MTnwMv3' width="900" height="1300">
+# MAGIC <img src ='https://raw.githubusercontent.com/ogdendc/images_public/main/spark_cluster.jpeg' width="900" height="1300">
 
 # COMMAND ----------
 
