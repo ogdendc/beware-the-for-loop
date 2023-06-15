@@ -234,7 +234,7 @@ def my_udf(input_data):
 
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, DoubleType, IntegerType, ArrayType, MapType, DecimalType, DateType, TimestampType
 
-#sSpecify Spark dataframe schema
+# Specify Spark dataframe schema
 spark_schema = StructType([
                StructField('location_ID',               IntegerType(),  True),
                StructField('transaction_date',          DateType(),    True),
@@ -306,7 +306,7 @@ display(df_dict)
 
 # COMMAND ----------
 
-# MAGIC %md # Method 3:  the multi-threaded approach:
+# MAGIC %md # Method 3:  the ThreadPoolExecutor approach:
 
 # COMMAND ----------
 
@@ -327,7 +327,7 @@ def my_new_udf(x):
 
 # COMMAND ----------
 
-# MAGIC %md ##### Note: the ThreadPool approach appears to be negatively impacted by too many partitions.
+# MAGIC %md ##### Note: the ThreadPoolExecutor approach appears to be negatively impacted by too many partitions.
 # MAGIC > ###### repartitioning by the groupby column works fine, as long as you don't force more than default partitions.
 
 # COMMAND ----------
@@ -375,10 +375,10 @@ print("approximate run time for this method = ", minutes, " minutes")
 # COMMAND ----------
 
 # MAGIC %md ## Let's pause and reflect...
-# MAGIC > #### on how long it took Method 3 (ThreadPool) vs the other methods above:
+# MAGIC > #### on how long it took Method 3 (ThreadPoolExecutor) vs the other methods above:
 # MAGIC - #### for-loop ~ 15 minutes
 # MAGIC - #### groupBy.applyinPandas ~ 6 *seconds*
-# MAGIC - #### ThreadPool ~ 7 minutes
+# MAGIC - #### ThreadPoolExecutor ~ 7 minutes
 
 # COMMAND ----------
 
@@ -488,7 +488,7 @@ print(("table size in rows, columns: ", grouped_spark_df.count(), len(grouped_sp
 # MAGIC %md ## Reviewing above run times:
 # MAGIC - ### for-loop ~ 15 minutes
 # MAGIC - ### groupBy.applyinPandas ~ 6 *seconds*
-# MAGIC - ### ThreadPool ~ 7 minutes
+# MAGIC - ### ThreadPoolExecutor ~ 7 minutes
 # MAGIC - ### PySpark (no Pandas) ~ 5 *seconds*
 
 # COMMAND ----------
@@ -594,6 +594,7 @@ start = datetime.datetime.now()
 
 # COMMAND ----------
 
+# Steps 1-3 for the groupBy.applyinPandas approach were already completed above, and don't need to change for the larger dataset.
 # Step 4:  do the Spark groupBy function with applyinPandas API
 
 # Note:  the .sort of the output does add unnecessary processing time, but provides more intuitively displayed output
