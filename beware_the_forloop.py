@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Comparing *sequential* vs *parallel* processing
+# MAGIC # Comparing *serial* vs *parallel* processing
 
 # COMMAND ----------
 
@@ -104,7 +104,7 @@ print("beginning partitions = ", spark_df.rdd.getNumPartitions())
 
 # COMMAND ----------
 
-# DBTITLE 1,partitioning by our "groups" variable will significantly reduce run times below
+# DBTITLE 1,partitioning by our "groups" variable will reduce run times below
 # partitioning the underlying data by the group-by column
 spark_df=spark_df.repartition('location_ID')
 
@@ -279,7 +279,7 @@ print("approximate run time for this method = ", minutes, " minutes")
 
 # MAGIC %md # Note on run times:
 # MAGIC > ### Results will vary.
-# MAGIC > ##### You may not get the same run times, but...
+# MAGIC > ##### You will not get the exact same run times, but...
 # MAGIC > ##### you should see the same order of magnitude of difference between run times for the various methods.
 
 # COMMAND ----------
@@ -317,7 +317,7 @@ display(df_dict)
 # COMMAND ----------
 
 # writing a udf that defines what is to be performed by each thread
-#      very similar to the udf above, with some minor coding tweaks
+#      very similar to the udf above, with some minor coding tweaks as needed
 
 def my_new_udf(x):
   grouped_pandas_df = spark_df.filter((spark_df.location_ID == x)).toPandas()
@@ -329,20 +329,6 @@ def my_new_udf(x):
 
 # MAGIC %md ##### Note: the ThreadPoolExecutor approach appears to be negatively impacted by too many partitions.
 # MAGIC > ###### repartitioning by the groupby column works fine, as long as you don't force more than default partitions.
-
-# COMMAND ----------
-
-# report the number of CPUs in your system visible to Python
-import os
-print(os.cpu_count())
-
-# COMMAND ----------
-
-from concurrent.futures import ThreadPoolExecutor
-# create a thread pool with the default number of worker threads
-executor = ThreadPoolExecutor()
-# report the number of worker threads chosen by default
-print(executor._max_workers)
 
 # COMMAND ----------
 
@@ -382,7 +368,7 @@ print("approximate run time for this method = ", minutes, " minutes")
 
 # COMMAND ----------
 
-# MAGIC %md ## Note:  If we observed cluster utilization (see Ganglia reports) during this execution...
+# MAGIC %md ## Note:  If we observed cluster utilization (e.g. Ganglia reports) during this execution...
 # MAGIC > #### we'd see significant increase in CPU utilization during ThreadPool execution...
 # MAGIC > #### which is what we expect/want from this approach.
 
@@ -414,6 +400,18 @@ grouped_pandas_df.shape
 # MAGIC %md > ##### above, we saw how easily we can convert to a dictionary of Pandas dataframes...
 # MAGIC > ###### from the single Pandas dataframe
 # MAGIC > ###### if that happened to be the desired format of the output
+
+# COMMAND ----------
+
+# Side note:  Similar performance to the concurrent.futures ThreadPoolExecutor method can be seen
+#             using the joblib.Parallel package.  You can uncomment this code to give it a try:
+
+#from joblib import  Parallel, delayed, parallel_backend
+
+#results = [] # <-- results will be returned as list of Pandas dataframes, as with ThreadPoolExecutor above
+
+#with parallel_backend('threading', n_jobs=42):
+#  results = Parallel()(delayed(my_new_udf)(i)for i in group_list.location_ID)
 
 # COMMAND ----------
 
@@ -682,7 +680,7 @@ print("total run time of notebook = ", minutes, " minutes")
 # MAGIC %md # Conclusions:
 # MAGIC > ## Beware the for-loop!
 # MAGIC > ## The groupBy.applyinPandas and the PySpark-only approaches are awesome.
-# MAGIC > ### The ThreadPool approach provides some reduced run time (compared to the for-loop), however...
+# MAGIC > ### The ThreadPoolExecutor approach provides some reduced run time (compared to the for-loop), however...
 # MAGIC >>> #### not nearly as great an improvement as seen with the more truly distributed approaches.
 # MAGIC ## This notebook doesn't delve into the mechanics behind the scenes, but it all comes down to how each approach does (or does not) take advantage of Spark's super power of distributing the workload across the cluster and fully utilizing the available cores:
 
